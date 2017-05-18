@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: web
+  labels:
+    name: web
+    app: ularc
+spec:
+  replicas: 3 
+  template:
+    metadata:
+      labels:
+        name: web
+    spec:
+        containers:
+          - name: redis
+            image: redis:latest
+            ports:
+              - containerPort: 6379
+                name: redis
+                protocol: TCP
+          - name: ularc
+            image: daleksandrov/ularc
+            command: ["/bin/bash", "-c"]
+            args: ["./ularc/deploy/docker/bin/wait-for-it.sh postgres; celery --app=ularc._celery:app worker --loglevel=INFO --concurrency=10"]
+            env:       
+              - name: "BROKER_URL"
+                value: "redis://localhost:6379//"
+              - name: 'DATABASE_HOST'
+                value: 'postgres'
+              - name: 'DATABASE_NAME'
+                value: 'ularc_testing'
+              - name: 'DATABASE_USER'
+                value: 'ularc'
+              - name: 'DATABASE_PASSWORD'
+                value: 'ularc'
+              - name: 'ULARC_DOCKER'
+                value: 'True'
+            ports:
+              - containerPort: 8010
+                name: http
+                protocol: TCP   

@@ -1,0 +1,52 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: ularc-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: ularc
+    spec:
+      containers:
+      - name: nginx
+        image: daleksandrov/nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: /usr/src/app/static
+          name: static-folder
+      - name: redis
+        image: redis:latest
+        ports:
+          - containerPort: 6379
+            name: redis
+            protocol: TCP
+      - name: ularc
+        image: daleksandrov/ularc
+        command: ["/bin/bash", "-c"]
+        args: ["./ularc/deploy/docker/bin/wait-for-it.sh postgres; celery --app=ularc._celery:app worker --loglevel=INFO --concurrency=10"]
+        env:       
+          - name: "BROKER_URL"
+            value: "redis://localhost:6379//"
+          - name: 'DATABASE_HOST'
+            value: 'postgres'
+          - name: 'DATABASE_NAME'
+            value: 'ularc_testing'
+          - name: 'DATABASE_USER'
+            value: 'ularc'
+          - name: 'DATABASE_PASSWORD'
+            value: 'ularc'
+          - name: 'ULARC_DOCKER'
+            value: 'True'
+        ports:
+          - containerPort: 8010
+            name: http
+            protocol: TCP   
+      nodeSelector:
+        name: ularc
+      volumes:
+        - name: static-folder
+          hostPath:
+            path: /usr/src/app/static
